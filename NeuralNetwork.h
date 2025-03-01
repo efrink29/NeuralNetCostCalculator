@@ -3,37 +3,30 @@
 
 #include <cstdlib>
 #include <vector>
+#include <iostream>
+#include <math.h>
+#include "Neuron.h"
 
 class NeuralNetwork
 {
 public:
-    NeuralNetwork(const std::vector<unsigned> &topology);
-    void feedForward(const std::vector<double> &inputVals);
-    void backProp(const std::vector<double> &targetVals);
-    void getResults(std::vector<double> &resultVals) const;
-    double getRecentAverageError() const { return m_recentAverageError; }
+    NeuralNetwork(std::vector<int> *topology, double learningRate); // Create a neural network with the given topology
+    NeuralNetwork(const std::string &filename);                     // Load a neural network from a file
+    ~NeuralNetwork();                                               // Destructor
+    void save(const std::string &filename) const;                   // Save a neural network to a file
+    void train(const std::vector<std::vector<std::vector<double>>> &inputVals, const std::vector<std::vector<std::vector<double>>> &targetVals);
+    double test(std::vector<std::vector<double>> *inputVals, std::vector<std::vector<double>> *resultVals, bool printResults = false);
+    double getError() const { return m_error; }
+    void printNetwork();
+    void setLearningRate(double learningRate) { this->learningRate = learningRate; }
 
 private:
-    struct Neuron;
-    typedef std::vector<Neuron> Layer;
-
-    static double eta;   // [0.0..1.0] overall net training rate
-    static double alpha; // [0.0..n] multiplier of last weight change (momentum)
-    static double transferFunction(double x);
-    static double transferFunctionDerivative(double x);
-    static double randomWeight() { return rand() / double(RAND_MAX); }
-    static double randomWeight(double min, double max) { return min + (max - min) * rand() / double(RAND_MAX); }
-
-    void feedForward(const Layer &prevLayer, Layer &nextLayer);
-    void backProp(const Layer &prevLayer, Layer &nextLayer, const std::vector<double> &targetVals);
-    void calcOutputGradients(const std::vector<double> &targetVals);
-    void calcHiddenGradients(const Layer &nextLayer);
-    void updateWeights(Layer &prevLayer, Layer &nextLayer);
-
-    std::vector<Layer> m_layers; // m_layers[layerNum][neuronNum]
+    std::vector<std::vector<Neuron *>> m_layers;
     double m_error;
-    double m_recentAverageError;
-    double m_recentAverageSmoothingFactor;
+    double learningRate;
+    void feedForward(std::vector<std::vector<double>> inputVals);
+    void backProp(const std::vector<std::vector<double>> &targetVals);
+    std::vector<double> getTestResults();
 };
 
 #endif // NEURALNETWORK_H
