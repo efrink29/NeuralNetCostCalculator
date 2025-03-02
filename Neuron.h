@@ -35,13 +35,14 @@ public:
     void backProp(double learningRate);
     void changeBatchSize(int batchSize);
     double getAverageOutput();
+    std::vector<Connection> inputConnections;
 
 private:
     int batchSize;
     double error;
     double bias;
     int numOutputConnections;
-    std::vector<Connection> inputConnections;
+
     double activationFunction(double x);
     double activationFunctionDerivative(double x);
 };

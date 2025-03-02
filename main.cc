@@ -1,6 +1,8 @@
 #include "NeuralNetwork.h"
 #include <iostream>
 #include <vector>
+#include <cstdlib>
+#include <ctime>
 
 using namespace std;
 double getFRand(double fMin, double fMax)
@@ -84,22 +86,12 @@ void printNetwork(vector<vector<Neuron *>> &layers)
     }
 } */
 
-int main(int argc, char **argv)
+void runSubtraction(NeuralNetwork *nn)
 {
-
-    vector<int> *topology = new vector<int>();
-    topology->push_back(2);
-    topology->push_back(3);
-    topology->push_back(6);
-    topology->push_back(4);
-    topology->push_back(1);
-
-    NeuralNetwork *nn = new NeuralNetwork(topology, 0.01);
-
-    int numTrainingSets = 10000;
-    int numSilentTests = 100;
-    int numPrintTests = 5;
-    int numEpochs = 1000;
+    int numTrainingSets = 100;
+    int numSilentTests = 10;
+    int numPrintTests = 1;
+    int numEpochs = 10;
     int batchSize = 3;
     double learningRate = 0.1;
     vector<int> printResults = {0, 5, 10};
@@ -150,6 +142,59 @@ int main(int argc, char **argv)
         double averageError = nn->test(&inputBatch, &outputBatch, print);
         cout << "Average error: " << averageError << endl;
     }
+}
 
+void runUserModeratedTraining(NeuralNetwork *nn)
+{
+    cout << "Enter number of training sets: ";
+    int numTrainingSets;
+    cin >> numTrainingSets;
+    cout << "Enter number of silent tests: ";
+    int numSilentTests;
+    cin >> numSilentTests;
+    cout << "Enter number of print tests: ";
+    int numPrintTests;
+    cin >> numPrintTests;
+    cout << "Enter number of epochs: ";
+    int numEpochs;
+    cin >> numEpochs;
+    cout << "Enter batch size: ";
+    int batchSize;
+    cin >> batchSize;
+    cout << "Enter learning rate: ";
+    double learningRate;
+    cin >> learningRate;
+    vector<int> printResults;
+    cout << "Enter print results (enter -1 to stop): ";
+    int printResult;
+    cin >> printResult;
+    while (printResult != -1)
+    {
+        printResults.push_back(printResult);
+        cin >> printResult;
+    }
+    nn->printNetwork();
+    // TODO implement this
+}
+
+int main(int argc, char **argv)
+{
+    srand(time(NULL));
+    vector<int> *topology = new vector<int>();
+    topology->push_back(2);
+    topology->push_back(3);
+    // topology->push_back(6);
+    topology->push_back(4);
+    topology->push_back(1);
+
+    NeuralNetwork *nn = new NeuralNetwork(topology, 0.1);
+
+    runSubtraction(nn);
+
+    nn->save("test.nn");
+    // nn->printNetwork();
+    NeuralNetwork *nn2 = new NeuralNetwork("test.nn");
+    nn2->printNetwork();
+    nn2->save("test2.nn");
     return 0;
 }

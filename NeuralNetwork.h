@@ -5,6 +5,10 @@
 #include <vector>
 #include <iostream>
 #include <math.h>
+#include <fstream>
+#include <unordered_map>
+#include <sstream>
+
 #include "Neuron.h"
 
 class NeuralNetwork

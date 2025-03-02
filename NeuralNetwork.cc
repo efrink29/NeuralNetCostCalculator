@@ -40,6 +40,102 @@ NeuralNetwork::NeuralNetwork(std::vector<int> *topology, double learningRate)
 
 NeuralNetwork::NeuralNetwork(const std::string &filename)
 {
+    std::ifstream file(filename);
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        return;
+    }
+
+    std::string line;
+    std::vector<Neuron *> layer;
+    std::unordered_map<std::string, Neuron *> neuronLookup; // Fast lookup for neurons
+
+    while (std::getline(file, line))
+    {
+        if (line.empty())
+            continue;
+
+        if (line.find("Layer") != std::string::npos)
+        {
+            // Store the previous layer before starting a new one
+            if (!layer.empty())
+            {
+                m_layers.push_back(layer);
+                layer.clear();
+            }
+            continue;
+        }
+
+        // Neuron Definition: "NeuronName:Bias"
+        size_t colonPos = line.find(":");
+        if (colonPos != std::string::npos)
+        {
+            std::string name = line.substr(0, colonPos);
+            std::string biasStr = line.substr(colonPos + 1);
+            double bias = 0.0;
+
+            try
+            {
+                bias = std::stod(biasStr);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error: Invalid bias value for neuron " << name << std::endl;
+                continue;
+            }
+
+            std::vector<Connection> inputConnections; // Initially empty
+            Neuron *newNeuron = new Neuron(1, name, inputConnections, bias);
+            layer.push_back(newNeuron);
+            neuronLookup[name] = newNeuron; // Store for fast lookup
+            continue;
+        }
+
+        // Connection Definition: "InputNeuron->OutputNeuron:Weight"
+        size_t arrowPos = line.find("->");
+        size_t weightPos = line.find(":", arrowPos);
+        if (arrowPos != std::string::npos && weightPos != std::string::npos)
+        {
+            std::string inputName = line.substr(0, arrowPos);
+            std::string outputName = line.substr(arrowPos + 2, weightPos - (arrowPos + 2));
+            std::string weightStr = line.substr(weightPos + 1);
+            double weight = 0.0;
+
+            try
+            {
+                weight = std::stod(weightStr);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error: Invalid weight value -> " << line << std::endl;
+                continue;
+            }
+
+            // Create connection
+            if (neuronLookup.find(inputName) != neuronLookup.end() &&
+                neuronLookup.find(outputName) != neuronLookup.end())
+            {
+                Connection connection;
+                connection.weight = weight;
+                connection.input = neuronLookup[inputName];
+
+                neuronLookup[outputName]->inputConnections.push_back(connection);
+            }
+            else
+            {
+                std::cerr << "Error: Neuron(s) not found for connection -> " << line << std::endl;
+            }
+        }
+    }
+
+    // Push the last layer if needed
+    if (!layer.empty())
+    {
+        m_layers.push_back(layer);
+    }
+
+    file.close();
 }
 
 NeuralNetwork::~NeuralNetwork()
@@ -54,6 +150,16 @@ NeuralNetwork::~NeuralNetwork()
 }
 void NeuralNetwork::save(const std::string &filename) const
 {
+    std::ofstream file(filename);
+    for (int i = 0; i < m_layers.size(); i++)
+    {
+        file << "Layer " << i << std::endl;
+        for (Neuron *neuron : m_layers[i])
+        {
+            file << neuron->getRepresentation();
+        }
+    }
+    file.close();
 }
 
 void NeuralNetwork::train(const std::vector<std::vector<std::vector<double>>> &inputVals, const std::vector<std::vector<std::vector<double>>> &targetVals)
