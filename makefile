@@ -8,7 +8,7 @@ CFLAGS = -g
 SRCS = $(wildcard *.cc) 
 
 # Object files
-OBJS = $(SRCS:.cc=.o)
+OBJS = $(SRCS:.cc=.o) 
 
 # Executable name
 EXEC = thesis_project
@@ -21,7 +21,7 @@ $(EXEC): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Compile source files to object files
-%.o: %.cc
+%.o: %.cc 
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean up build files

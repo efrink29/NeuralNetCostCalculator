@@ -202,14 +202,14 @@ double NeuralNetwork::test(std::vector<std::vector<double>> *inputVals, std::vec
         std::vector<double> results = getTestResults();
         for (int r = 0; r < results.size(); r++)
         {
-            avgError += abs((*resultVals)[i][r] - results[0]);
+            avgError += abs((*resultVals)[i][r] - results[r]);
         }
         if (printResults)
         {
             std::cout << "Results Test #" + std::to_string(i) << "Expected : Actual" << std::endl;
             for (int r = 0; r < results.size(); r++)
             {
-                std::cout << (*resultVals)[i][r] << " : " << results[0] << std::endl;
+                std::cout << (*resultVals)[i][r] << " : " << results[r] << std::endl;
             }
             std::cout << std::endl;
         }

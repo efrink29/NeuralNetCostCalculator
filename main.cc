@@ -1,4 +1,5 @@
 #include "NeuralNetwork.h"
+#include "mnistReader.h"
 #include <iostream>
 #include <vector>
 #include <cstdlib>
@@ -177,24 +178,87 @@ void runUserModeratedTraining(NeuralNetwork *nn)
     // TODO implement this
 }
 
+vector<double> getOutputForLabel(int label)
+{
+    vector<double> output = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    output[label] = 1;
+    return output;
+}
+
+void trainMnist(MNISTReader *reader, NeuralNetwork *nn, int numBatches, int batchSize, double learningRate)
+{
+    vector<vector<vector<double>>> inputs;
+    vector<vector<vector<double>>> outputs;
+    for (int i = 0; i < numBatches; i++)
+    {
+        vector<vector<double>> inputBatch = {};
+        vector<vector<double>> outputBatch = {};
+        for (int b = 0; b < batchSize; b++)
+        {
+            Image_Data *image1 = reader->getNextTrainImage();
+            Image_Data *image2 = reader->getNextTrainImage();
+            vector<double> input = image1->pixels;
+            vector<double> output = getOutputForLabel(image1->label);
+
+            inputBatch.push_back(input);
+            outputBatch.push_back(output);
+            delete image1;
+            delete image2;
+        }
+        inputs.push_back(inputBatch);
+        outputs.push_back(outputBatch);
+    }
+    nn->train(inputs, outputs);
+}
+
+double testMnist(MNISTReader *reader, NeuralNetwork *nn, int numTests)
+{
+    vector<vector<double>> inputBatch = {};
+    vector<vector<double>> outputBatch = {};
+    for (int i = 0; i < numTests; i++)
+    {
+        Image_Data *image = reader->getNextTestImage();
+        vector<double> input = image->pixels;
+        vector<double> output = getOutputForLabel(image->label);
+        reader->printImage(image, true);
+        inputBatch.push_back(input);
+        outputBatch.push_back(output);
+        delete image;
+    }
+    return nn->test(&inputBatch, &outputBatch, true);
+}
+
 int main(int argc, char **argv)
 {
+
     srand(time(NULL));
+    MNISTReader reader("data");
+
+    Image_Data *image1 = reader.getNextTrainImage();
+    Image_Data *image2 = reader.getNextTrainImage();
+
+    cout << "Image 1: " << image1->pixels[(24 * 28) + 24] << endl;
+    reader.printImage(image1, true);
+    reader.printImage(image2, true);
+
+    delete image1;
+    delete image2;
     vector<int> *topology = new vector<int>();
-    topology->push_back(2);
-    topology->push_back(3);
-    // topology->push_back(6);
-    topology->push_back(4);
-    topology->push_back(1);
+    topology->push_back(28 * 28);
+    topology->push_back(30);
+    topology->push_back(10);
 
     NeuralNetwork *nn = new NeuralNetwork(topology, 0.1);
-
-    runSubtraction(nn);
+    // Need to fix constructor
+    trainMnist(&reader, nn, 10000, 1, 0.1);
+    double avgError = testMnist(&reader, nn, 10);
+    cout << "Average error: " << avgError << endl;
+    // runSubtraction(nn);
 
     nn->save("test.nn");
     // nn->printNetwork();
-    NeuralNetwork *nn2 = new NeuralNetwork("test.nn");
-    nn2->printNetwork();
-    nn2->save("test2.nn");
+    // NeuralNetwork *nn2 = new NeuralNetwork("test.nn");
+    // nn2->printNetwork();
+    // nn2->save("test2.nn");
     return 0;
 }
