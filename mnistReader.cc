@@ -2,6 +2,7 @@
 
 MNISTReader::MNISTReader(const string &dataDirectory)
 {
+    srand(time(NULL));
     string trainImageFile = dataDirectory + "\\train-images.idx3-ubyte";
     string trainLabelFile = dataDirectory + "\\train-labels.idx1-ubyte";
     string testImageFile = dataDirectory + "/t10k-images.idx3-ubyte";
@@ -16,6 +17,8 @@ MNISTReader::MNISTReader(const string &dataDirectory)
     train_images = loadImages(trainImageFile, numTrainImages, rows, cols);
     test_labels = loadLabels(testLabelFile);
     test_images = loadImages(testImageFile, numTestImages, rows, cols);
+    shuffleTrainImages();
+    shuffleTestImages();
 }
 
 void MNISTReader::printImage(Image_Data *image, bool printPixels)
@@ -44,6 +47,7 @@ Image_Data *MNISTReader::getNextTrainImage()
     if (train_index >= numTrainImages)
     {
         train_index = 0;
+        shuffleTrainImages();
     }
     return image;
 }
@@ -65,6 +69,7 @@ Image_Data *MNISTReader::getNextTestImage()
     if (test_index >= numTestImages)
     {
         test_index = 0;
+        shuffleTestImages();
     }
     return image;
 }
@@ -81,13 +86,21 @@ void MNISTReader::printImageInternal(Image_Data *image, uint32_t rows, uint32_t 
         cout << "|";
         for (uint32_t j = 0; j < cols; j++)
         {
-            if (image->pixels[i * cols + j] > 0.66)
+            if (image->pixels[i * cols + j] > 0.88)
             {
                 cout << "##";
             }
-            else if (image->pixels[i * cols + j] > 0.33)
+            else if (image->pixels[i * cols + j] > 0.66)
             {
                 cout << "++";
+            }
+            else if (image->pixels[i * cols + j] > 0.33)
+            {
+                cout << "--";
+            }
+            else if (image->pixels[i * cols + j] > 0.11)
+            {
+                cout << "..";
             }
             else
             {
@@ -166,4 +179,54 @@ vector<vector<uint8_t>> MNISTReader::loadImages(const string &filename, uint32_t
 
     file.close();
     return images;
+}
+
+void MNISTReader::shuffleTestImages()
+{
+    vector<uint8_t> temp_labels = vector<uint8_t>();
+    vector<vector<uint8_t>> temp_images = vector<vector<uint8_t>>();
+    cout << "Shuffling Testing Images..." << endl;
+
+    while (test_images.size() > 0)
+    {
+        int index = rand() % test_images.size();
+        temp_labels.push_back(test_labels[index]);
+        temp_images.push_back(test_images[index]);
+        test_labels.erase(test_labels.begin() + index);
+        test_images.erase(test_images.begin() + index);
+        if ((test_images.size() % (numTestImages / 10)) == 0)
+        {
+            cout << "Test images left: " << test_images.size() << endl;
+        }
+    }
+
+    test_labels = temp_labels;
+    test_images = temp_images;
+    cout << "Shuffled images" << endl;
+    cout << "Test images: " << test_images.size() << endl;
+}
+
+void MNISTReader::shuffleTrainImages()
+{
+    vector<uint8_t> temp_labels = vector<uint8_t>();
+    vector<vector<uint8_t>> temp_images = vector<vector<uint8_t>>();
+    cout << "Shuffling Training Images..." << endl;
+    while (train_images.size() > 0)
+    {
+        int index = rand() % train_images.size();
+        temp_labels.push_back(train_labels[index]);
+        temp_images.push_back(train_images[index]);
+        train_labels.erase(train_labels.begin() + index);
+        train_images.erase(train_images.begin() + index);
+        if ((train_images.size() % (numTrainImages / 10)) == 0)
+        {
+            cout << "Train images left: " << train_images.size() << endl;
+        }
+    }
+
+    train_labels = temp_labels;
+    train_images = temp_images;
+
+    cout << "Shuffled images" << endl;
+    cout << "Train images: " << train_images.size() << endl;
 }

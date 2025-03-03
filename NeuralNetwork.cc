@@ -49,83 +49,33 @@ NeuralNetwork::NeuralNetwork(const std::string &filename)
 
     std::string line;
     std::vector<Neuron *> layer;
-    std::unordered_map<std::string, Neuron *> neuronLookup; // Fast lookup for neurons
+    std::unordered_map<std::string, Neuron *> neuronLookup;
 
     while (std::getline(file, line))
     {
-        if (line.empty())
-            continue;
-
         if (line.find("Layer") != std::string::npos)
         {
-            // Store the previous layer before starting a new one
             if (!layer.empty())
             {
                 m_layers.push_back(layer);
                 layer.clear();
             }
-            continue;
         }
-
-        // Neuron Definition: "NeuronName:Bias"
-        size_t colonPos = line.find(":");
-        if (colonPos != std::string::npos)
+        else
         {
-            std::string name = line.substr(0, colonPos);
-            std::string biasStr = line.substr(colonPos + 1);
-            double bias = 0.0;
+            std::string name = line.substr(0, line.find(":"));
+            double bias = std::stod(line.substr(line.find(":") + 1));
 
-            try
+            std::vector<Connection> inputConnections;
+            while (std::getline(file, line) && line.find("End Inputs") == std::string::npos)
             {
-                bias = std::stod(biasStr);
+                std::string inputName = line.substr(0, line.find(":"));
+                double weight = std::stod(line.substr(line.find(":") + 1));
+                inputConnections.push_back({weight, neuronLookup[inputName]});
             }
-            catch (const std::exception &e)
-            {
-                std::cerr << "Error: Invalid bias value for neuron " << name << std::endl;
-                continue;
-            }
-
-            std::vector<Connection> inputConnections; // Initially empty
-            Neuron *newNeuron = new Neuron(1, name, inputConnections, bias);
-            layer.push_back(newNeuron);
-            neuronLookup[name] = newNeuron; // Store for fast lookup
-            continue;
-        }
-
-        // Connection Definition: "InputNeuron->OutputNeuron:Weight"
-        size_t arrowPos = line.find("->");
-        size_t weightPos = line.find(":", arrowPos);
-        if (arrowPos != std::string::npos && weightPos != std::string::npos)
-        {
-            std::string inputName = line.substr(0, arrowPos);
-            std::string outputName = line.substr(arrowPos + 2, weightPos - (arrowPos + 2));
-            std::string weightStr = line.substr(weightPos + 1);
-            double weight = 0.0;
-
-            try
-            {
-                weight = std::stod(weightStr);
-            }
-            catch (const std::exception &e)
-            {
-                std::cerr << "Error: Invalid weight value -> " << line << std::endl;
-                continue;
-            }
-
-            // Create connection
-            if (neuronLookup.find(inputName) != neuronLookup.end() &&
-                neuronLookup.find(outputName) != neuronLookup.end())
-            {
-                Connection connection;
-                connection.weight = weight;
-                connection.input = neuronLookup[inputName];
-
-                neuronLookup[outputName]->inputConnections.push_back(connection);
-            }
-            else
-            {
-                std::cerr << "Error: Neuron(s) not found for connection -> " << line << std::endl;
-            }
+            Neuron *neuron = new Neuron(1, name, inputConnections, bias);
+            layer.push_back(neuron);
+            neuronLookup[name] = neuron;
         }
     }
 
@@ -200,13 +150,15 @@ double NeuralNetwork::test(std::vector<std::vector<double>> *inputVals, std::vec
         testInput.push_back((*inputVals)[i]);
         feedForward(testInput);
         std::vector<double> results = getTestResults();
+        double avgTestError = 0.0;
         for (int r = 0; r < results.size(); r++)
         {
-            avgError += abs((*resultVals)[i][r] - results[r]);
+            avgTestError += abs((*resultVals)[i][r] - results[r]);
         }
+        avgError += avgTestError / (double)results.size();
         if (printResults)
         {
-            std::cout << "Results Test #" + std::to_string(i) << "Expected : Actual" << std::endl;
+            std::cout << "Results Test #" + std::to_string(i) << "\nExpected : Actual" << std::endl;
             for (int r = 0; r < results.size(); r++)
             {
                 std::cout << (*resultVals)[i][r] << " : " << results[r] << std::endl;
@@ -280,4 +232,17 @@ void NeuralNetwork::printNetwork()
             std::cout << neuron->getRepresentation();
         }
     }
+}
+
+unsigned long NeuralNetwork::getComputations()
+{
+    unsigned long computations = 0;
+    for (int i = 1; i < m_layers.size(); i++)
+    {
+        for (Neuron *neuron : m_layers[i])
+        {
+            computations += neuron->inputConnections.size() + 1;
+        }
+    }
+    return computations;
 }

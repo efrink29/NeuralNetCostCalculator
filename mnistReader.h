@@ -7,6 +7,9 @@
 #include <cstdint>
 #include <string>
 
+#include <random>
+#include <ctime>
+
 using namespace std;
 
 struct Image_Data
@@ -39,6 +42,8 @@ private:
     uint32_t readBigEndianInt(ifstream &file);
     vector<uint8_t> loadLabels(const string &filename);
     vector<vector<uint8_t>> loadImages(const string &filename, uint32_t &numImages, uint32_t &rows, uint32_t &cols);
+    void shuffleTrainImages();
+    void shuffleTestImages();
 };
 
 #endif // MNIST_READER_H

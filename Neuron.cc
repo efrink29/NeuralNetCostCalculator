@@ -51,10 +51,12 @@ Neuron::~Neuron()
 std::string Neuron::getRepresentation()
 {
     std::string representation = name + ":" + std::to_string(this->bias) + "\n";
+    // representation += "Inputs:\n";
     for (Connection connection : inputConnections)
     {
-        representation += "" + connection.input->name + "->" + name + ":" + std::to_string(connection.weight) + "\n";
+        representation += "" + connection.input->name + ":" + std::to_string(connection.weight) + "\n";
     }
+    representation += "End Inputs\n";
     return representation;
 }
 

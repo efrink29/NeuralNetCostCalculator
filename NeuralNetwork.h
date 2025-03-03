@@ -23,6 +23,7 @@ public:
     double getError() const { return m_error; }
     void printNetwork();
     void setLearningRate(double learningRate) { this->learningRate = learningRate; }
+    unsigned long getComputations();
 
 private:
     std::vector<std::vector<Neuron *>> m_layers;

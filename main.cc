@@ -196,14 +196,13 @@ void trainMnist(MNISTReader *reader, NeuralNetwork *nn, int numBatches, int batc
         for (int b = 0; b < batchSize; b++)
         {
             Image_Data *image1 = reader->getNextTrainImage();
-            Image_Data *image2 = reader->getNextTrainImage();
+
             vector<double> input = image1->pixels;
             vector<double> output = getOutputForLabel(image1->label);
 
             inputBatch.push_back(input);
             outputBatch.push_back(output);
             delete image1;
-            delete image2;
         }
         inputs.push_back(inputBatch);
         outputs.push_back(outputBatch);
@@ -215,17 +214,86 @@ double testMnist(MNISTReader *reader, NeuralNetwork *nn, int numTests)
 {
     vector<vector<double>> inputBatch = {};
     vector<vector<double>> outputBatch = {};
+    bool numbersPresent[] = {false, false, false, false, false, false, false, false, false, false};
     for (int i = 0; i < numTests; i++)
     {
         Image_Data *image = reader->getNextTestImage();
-        vector<double> input = image->pixels;
-        vector<double> output = getOutputForLabel(image->label);
-        reader->printImage(image, true);
-        inputBatch.push_back(input);
-        outputBatch.push_back(output);
+        if (i % 10 == 0)
+        {
+            for (int j = 0; j < 10; j++)
+            {
+                numbersPresent[j] = false;
+            }
+        }
+        if (!numbersPresent[image->label])
+        {
+            vector<double> input = image->pixels;
+            vector<double> output = getOutputForLabel(image->label);
+            // reader->printImage(image, true);
+            inputBatch.push_back(input);
+            outputBatch.push_back(output);
+            numbersPresent[image->label] = true;
+        }
+        else
+        {
+            i--;
+        }
+
         delete image;
     }
     return nn->test(&inputBatch, &outputBatch, true);
+}
+
+bool saveNetwork(NeuralNetwork *nn)
+{
+    cout << "Enter filename to save to: ";
+    string filename;
+    cin >> filename;
+
+    // Check if file exists
+    ifstream file(filename);
+    if (file.good())
+    {
+        cout << "File already exists. Overwrite? (y/n): ";
+        char response;
+        cin >> response;
+        if (response != 'y')
+        {
+            return false;
+        }
+    }
+    nn->save(filename);
+    return true;
+}
+
+bool saveNetwork(NeuralNetwork *nn, vector<double> averageErrors)
+{
+    cout << "Enter filename to save to: ";
+    string filename;
+    cin >> filename;
+
+    // Check if file exists
+    ifstream file(filename);
+    if (file.good())
+    {
+        cout << "File already exists. Overwrite? (y/n): ";
+        char response;
+        cin >> response;
+        if (response != 'y')
+        {
+            return false;
+        }
+    }
+    nn->save(filename);
+    ofstream errorFile(filename + ".error");
+    unsigned long computations = nn->getComputations();
+    errorFile << "Model Cost: " << computations << endl;
+    for (double error : averageErrors)
+    {
+        errorFile << error << endl;
+    }
+    errorFile.close();
+    return true;
 }
 
 int main(int argc, char **argv)
@@ -245,20 +313,27 @@ int main(int argc, char **argv)
     delete image2;
     vector<int> *topology = new vector<int>();
     topology->push_back(28 * 28);
-    topology->push_back(30);
+    topology->push_back(28 * 2);
     topology->push_back(10);
 
-    NeuralNetwork *nn = new NeuralNetwork(topology, 0.1);
-    // Need to fix constructor
-    trainMnist(&reader, nn, 10000, 1, 0.1);
-    double avgError = testMnist(&reader, nn, 10);
-    cout << "Average error: " << avgError << endl;
-    // runSubtraction(nn);
+    NeuralNetwork *nn = new NeuralNetwork(topology, 0.05);
 
-    nn->save("test.nn");
-    // nn->printNetwork();
-    // NeuralNetwork *nn2 = new NeuralNetwork("test.nn");
-    // nn2->printNetwork();
-    // nn2->save("test2.nn");
+    // Need to fix constructor
+    // trainMnist(&reader, nn, 10000, 1, 0.1);
+    // double avgError = testMnist(&reader, nn, 10);
+    // cout << "Average error: " << avgError << endl;
+    //  runSubtraction(nn);
+    vector<double> averageErrors;
+    int numEpochs = 10;
+    for (int i = 0; i < numEpochs; i++)
+    {
+        trainMnist(&reader, nn, 10000, 1, 0.1);
+        double avgError = testMnist(&reader, nn, 40);
+        cout << "Average error: " << avgError << endl;
+        averageErrors.push_back(avgError);
+    }
+    while (!saveNetwork(nn, averageErrors))
+    {
+    };
     return 0;
 }
