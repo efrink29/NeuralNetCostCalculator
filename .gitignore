@@ -5,3 +5,4 @@ data/
 *.o
 *.nn
 *.error
+*.csv

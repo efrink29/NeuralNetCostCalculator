@@ -50,7 +50,7 @@ NeuralNetwork::NeuralNetwork(const std::string &filename)
     std::string line;
     std::vector<Neuron *> layer;
     std::unordered_map<std::string, Neuron *> neuronLookup;
-
+    std::getline(file, line);
     while (std::getline(file, line))
     {
         if (line.find("Layer") != std::string::npos)
@@ -98,9 +98,11 @@ NeuralNetwork::~NeuralNetwork()
         }
     }
 }
-void NeuralNetwork::save(const std::string &filename) const
+void NeuralNetwork::save(const std::string &filename)
 {
     std::ofstream file(filename);
+    unsigned long computations = getComputations();
+    file << "Cost: " << computations << std::endl;
     for (int i = 0; i < m_layers.size(); i++)
     {
         file << "Layer " << i << std::endl;
@@ -167,6 +169,17 @@ double NeuralNetwork::test(std::vector<std::vector<double>> *inputVals, std::vec
         }
     }
     return avgError / (double)inputVals->size();
+}
+
+void NeuralNetwork::randomizeWeightsAndBias()
+{
+    for (int i = 1; i < m_layers.size(); i++)
+    {
+        for (Neuron *neuron : m_layers[i])
+        {
+            neuron->randomizeWeightsAndBias();
+        }
+    }
 }
 
 void NeuralNetwork::feedForward(std::vector<std::vector<double>> inputVals)

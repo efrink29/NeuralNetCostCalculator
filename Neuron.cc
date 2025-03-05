@@ -111,6 +111,15 @@ double Neuron::getAverageOutput()
     return sum / batchSize;
 }
 
+void Neuron::randomizeWeightsAndBias()
+{
+    for (Connection &connection : inputConnections)
+    {
+        connection.weight = randomWeight();
+    }
+    this->bias = (randomWeight() + 1.0) / 2.0;
+}
+
 double Neuron::activationFunction(double x)
 {
     return 1 / (1 + std::exp(-x));

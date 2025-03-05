@@ -36,6 +36,7 @@ public:
     void changeBatchSize(int batchSize);
     double getAverageOutput();
     std::vector<Connection> inputConnections;
+    void randomizeWeightsAndBias();
 
 private:
     int batchSize;

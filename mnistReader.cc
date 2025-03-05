@@ -183,50 +183,44 @@ vector<vector<uint8_t>> MNISTReader::loadImages(const string &filename, uint32_t
 
 void MNISTReader::shuffleTestImages()
 {
-    vector<uint8_t> temp_labels = vector<uint8_t>();
-    vector<vector<uint8_t>> temp_images = vector<vector<uint8_t>>();
-    cout << "Shuffling Testing Images..." << endl;
-
-    while (test_images.size() > 0)
+    cout << "Shuffling Test Set ..." << endl;
+    for (int i = 0; i < numTestImages; i++)
     {
         int index = rand() % test_images.size();
-        temp_labels.push_back(test_labels[index]);
-        temp_images.push_back(test_images[index]);
-        test_labels.erase(test_labels.begin() + index);
-        test_images.erase(test_images.begin() + index);
-        if ((test_images.size() % (numTestImages / 10)) == 0)
+        uint8_t temp_label = test_labels[index];
+        vector<uint8_t> temp_image = test_images[index];
+        test_labels[index] = test_labels[i];
+        test_images[index] = test_images[i];
+        test_labels[i] = temp_label;
+        test_images[i] = temp_image;
+        if ((i % (numTestImages / 10)) == 0)
         {
-            cout << "Test images left: " << test_images.size() << endl;
+            // cout << "Test images left: " << (numTestImages - i) << endl;
         }
     }
 
-    test_labels = temp_labels;
-    test_images = temp_images;
-    cout << "Shuffled images" << endl;
-    cout << "Test images: " << test_images.size() << endl;
+    // cout << " Done ... ";
+    //  cout << "Test images: " << test_images.size() << endl;
 }
 
 void MNISTReader::shuffleTrainImages()
 {
-    vector<uint8_t> temp_labels = vector<uint8_t>();
-    vector<vector<uint8_t>> temp_images = vector<vector<uint8_t>>();
-    cout << "Shuffling Training Images..." << endl;
-    while (train_images.size() > 0)
+
+    cout << "Shuffling Training Set ..." << endl;
+    for (int i = 0; i < numTrainImages; i++)
     {
         int index = rand() % train_images.size();
-        temp_labels.push_back(train_labels[index]);
-        temp_images.push_back(train_images[index]);
-        train_labels.erase(train_labels.begin() + index);
-        train_images.erase(train_images.begin() + index);
-        if ((train_images.size() % (numTrainImages / 10)) == 0)
+        uint8_t temp_label = train_labels[index];
+        vector<uint8_t> temp_image = train_images[index];
+        train_labels[index] = train_labels[i];
+        train_images[index] = train_images[i];
+        train_labels[i] = temp_label;
+        train_images[i] = temp_image;
+        if ((i % (numTrainImages / 10)) == 0)
         {
-            cout << "Train images left: " << train_images.size() << endl;
+            // cout << "Train images left: " << (numTrainImages - i) << endl;
         }
     }
 
-    train_labels = temp_labels;
-    train_images = temp_images;
-
-    cout << "Shuffled images" << endl;
-    cout << "Train images: " << train_images.size() << endl;
+    // cout << "Done ... ";
 }

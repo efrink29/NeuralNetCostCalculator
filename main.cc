@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <chrono>
 
 using namespace std;
 double getFRand(double fMin, double fMax)
@@ -207,6 +208,7 @@ void trainMnist(MNISTReader *reader, NeuralNetwork *nn, int numBatches, int batc
         inputs.push_back(inputBatch);
         outputs.push_back(outputBatch);
     }
+    nn->setLearningRate(learningRate);
     nn->train(inputs, outputs);
 }
 
@@ -241,7 +243,34 @@ double testMnist(MNISTReader *reader, NeuralNetwork *nn, int numTests)
 
         delete image;
     }
-    return nn->test(&inputBatch, &outputBatch, true);
+    return nn->test(&inputBatch, &outputBatch, false);
+}
+
+vector<double> bigMnistTest(MNISTReader *reader, NeuralNetwork *nn, int numTests)
+{
+
+    // bool numbersPresent[] = {false, false, false, false, false, false, false, false, false, false};
+    double avgPerDigitError[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    int numPerDigitTests[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    for (int i = 0; i < numTests; i++)
+    {
+        Image_Data *image = reader->getNextTestImage();
+        vector<double> input = image->pixels;
+        vector<double> output = getOutputForLabel(image->label);
+        vector<vector<double>> inputBatch = {input};
+        vector<vector<double>> outputBatch = {output};
+        double error = nn->test(&inputBatch, &outputBatch, false);
+        avgPerDigitError[image->label] += error;
+        numPerDigitTests[image->label]++;
+
+        delete image;
+    }
+    vector<double> avgErrors;
+    for (int i = 0; i < 10; i++)
+    {
+        avgErrors.push_back(avgPerDigitError[i] / (double)numPerDigitTests[i]);
+    }
+    return avgErrors;
 }
 
 bool saveNetwork(NeuralNetwork *nn)
@@ -249,9 +278,10 @@ bool saveNetwork(NeuralNetwork *nn)
     cout << "Enter filename to save to: ";
     string filename;
     cin >> filename;
+    string dirfilename = "models/" + filename;
 
     // Check if file exists
-    ifstream file(filename);
+    ifstream file(dirfilename);
     if (file.good())
     {
         cout << "File already exists. Overwrite? (y/n): ";
@@ -262,7 +292,8 @@ bool saveNetwork(NeuralNetwork *nn)
             return false;
         }
     }
-    nn->save(filename);
+
+    nn->save(dirfilename);
     return true;
 }
 
@@ -296,6 +327,128 @@ bool saveNetwork(NeuralNetwork *nn, vector<double> averageErrors)
     return true;
 }
 
+void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *reader, int numModels, int numEpochs)
+{
+    double totalErrorRates[numEpochs][11];
+
+    double minError[10];
+    for (int i = 0; i < 10; i++)
+    {
+        minError[i] = 1;
+    }
+    for (int i = 0; i < numEpochs; i++)
+    {
+        for (int j = 0; j < 11; j++)
+        {
+            totalErrorRates[i][j] = 0;
+        }
+    }
+
+    for (int m = 0; m < numModels; m++)
+    {
+        cout << "Model " << (m + 1) << endl;
+        nn->randomizeWeightsAndBias();
+        cout << "Completed Epochs: ... " << endl;
+        double errorRates[numEpochs][11];
+
+        for (int i = 0; i < numEpochs; i++)
+        {
+            for (int j = 0; j < 11; j++)
+            {
+                errorRates[i][j] = 0;
+            }
+            auto start = chrono::high_resolution_clock::now();
+
+            trainMnist(reader, nn, 10000, 1, (0.01 * m) + 0.05);
+            vector<double> avgErrors = bigMnistTest(reader, nn, 1000);
+            double avgError = 0;
+            for (int j = 0; j < 10; j++)
+            {
+                errorRates[i][j] += avgErrors[j];
+                avgError += avgErrors[j];
+            }
+
+            avgError /= 10;
+            errorRates[i][10] += avgError;
+            // cout << "Average error: " << avgError << endl;
+            cout << "" << (i + 1);
+            if (i < numEpochs - 1)
+            {
+                // cout << " ... ";
+            }
+            auto end = chrono::high_resolution_clock::now();
+            auto duration = chrono::duration_cast<chrono::seconds>(end - start);
+            auto time = duration.count();
+            auto ETA = ((numEpochs - i - 1) + (numEpochs * (numModels - m - 1))) * time;
+            if (ETA > 60)
+            {
+                cout << " ETA: " << ETA / 60 << " minutes" << endl;
+            }
+            else
+            {
+                cout << " ETA: " << ETA << " seconds" << endl;
+            }
+            // averageErrors.push_back(avgError);
+            for (int e = 0; e < 11; e++)
+            {
+                totalErrorRates[i][e] += errorRates[i][e];
+            }
+        }
+        cout << endl;
+        double totalDiff = 0;
+        for (int i = 0; i < 11; i++)
+        {
+            totalDiff += errorRates[numEpochs - 1][i] - minError[i];
+        }
+        if (totalDiff < 0)
+        {
+            for (int i = 0; i < 11; i++)
+            {
+                minError[i] = errorRates[numEpochs - 1][i];
+            }
+            nn->save(fileName + ".nn");
+        }
+    }
+
+    for (int i = 0; i < numEpochs; i++)
+    {
+        for (int j = 0; j < 11; j++)
+        {
+            totalErrorRates[i][j] /= numModels;
+        }
+    }
+
+    ofstream errorFile(fileName + ".csv");
+    errorFile << "Epoch,0,1,2,3,4,5,6,7,8,9,Average" << endl;
+    for (int i = 0; i < numEpochs; i++)
+    {
+        errorFile << (i + 1) << ",";
+        for (int j = 0; j < 10; j++)
+        {
+            if (totalErrorRates[i][j] < 0.0001)
+            {
+                errorFile << "0,";
+            }
+            else
+            {
+                errorFile << totalErrorRates[i][j] << ",";
+            }
+        }
+        if (totalErrorRates[i][10] < 0.0001)
+        {
+            errorFile << "0";
+        }
+        else
+        {
+            errorFile << totalErrorRates[i][10];
+        }
+
+        errorFile << endl;
+    }
+
+    errorFile.close();
+}
+
 int main(int argc, char **argv)
 {
 
@@ -307,33 +460,72 @@ int main(int argc, char **argv)
 
     cout << "Image 1: " << image1->pixels[(24 * 28) + 24] << endl;
     reader.printImage(image1, true);
-    reader.printImage(image2, true);
+    // reader.printImage(image2, true);
 
     delete image1;
     delete image2;
+    int modify = 28;
     vector<int> *topology = new vector<int>();
     topology->push_back(28 * 28);
-    topology->push_back(28 * 2);
+    topology->push_back(4);
     topology->push_back(10);
 
-    NeuralNetwork *nn = new NeuralNetwork(topology, 0.05);
+    NeuralNetwork *nn = new NeuralNetwork(topology, 0.1);
+    nn->setLearningRate(0.1);
+    nn->randomizeWeightsAndBias();
 
-    // Need to fix constructor
-    // trainMnist(&reader, nn, 10000, 1, 0.1);
-    // double avgError = testMnist(&reader, nn, 10);
-    // cout << "Average error: " << avgError << endl;
-    //  runSubtraction(nn);
-    vector<double> averageErrors;
+    int numModels = 10;
     int numEpochs = 10;
-    for (int i = 0; i < numEpochs; i++)
+
+    generateDeepErrorTable("bottleNeck", nn, &reader, numModels, numEpochs);
+    /*delete nn;
+    topology->clear();
+    topology->push_back(28 * 28);
+    topology->push_back((28 * 4) / modify);
+    topology->push_back((28 * 4) / modify);
+    topology->push_back((28 * 4) / modify);
+    topology->push_back((28 * 4) / modify);
+    topology->push_back(10);
+    nn = new NeuralNetwork(topology, 0.1);
+    nn->setLearningRate(0.1);
+    nn->randomizeWeightsAndBias();
+    generateDeepErrorTable("deep4short", nn, &reader, numModels, numEpochs);
+    delete nn;
+    topology->clear();
+    topology->push_back(28 * 28);
+    for (int i = 0; i < 20; i++)
     {
-        trainMnist(&reader, nn, 10000, 1, 0.1);
-        double avgError = testMnist(&reader, nn, 40);
-        cout << "Average error: " << avgError << endl;
-        averageErrors.push_back(avgError);
+        topology->push_back((28 * 4) / modify);
     }
-    while (!saveNetwork(nn, averageErrors))
+    topology->push_back(10);
+    nn = new NeuralNetwork(topology, 0.1);
+    nn->setLearningRate(0.1);
+    nn->randomizeWeightsAndBias();
+    generateDeepErrorTable("deep4long", nn, &reader, numModels, numEpochs);
+    delete nn;
+    topology->clear();
+    topology->push_back(28 * 28);
+    topology->push_back((28 * 8) / modify);
+    topology->push_back((28 * 8) / modify);
+    topology->push_back(10);
+    nn = new NeuralNetwork(topology, 0.1);
+    nn->setLearningRate(0.1);
+    nn->randomizeWeightsAndBias();
+    generateDeepErrorTable("deep8short", nn, &reader, numModels, numEpochs);
+    delete nn;
+    topology->clear();
+    topology->push_back(28 * 28);
+    for (int i = 0; i < 4; i++)
     {
-    };
+        topology->push_back((28 * 8) / modify);
+    }
+    topology->push_back(10);
+    nn = new NeuralNetwork(topology, 0.1);
+    nn->setLearningRate(0.1);
+    nn->randomizeWeightsAndBias();
+    generateDeepErrorTable("deep8long", nn, &reader, numModels, numEpochs); //*/
+    delete nn;
+    delete topology;
+
     return 0;
 }
