@@ -182,6 +182,46 @@ void NeuralNetwork::randomizeWeightsAndBias()
     }
 }
 
+unsigned long NeuralNetwork::pruneNetwork(double proportion)
+{
+    unsigned long pruned = 0;
+    for (int i = 1; i < m_layers.size(); i++)
+    {
+        int numConnections = 0;
+        for (Neuron *neuron : m_layers[i])
+        {
+            numConnections += neuron->inputConnections.size();
+        }
+        int numPruned = numConnections * proportion;
+        for (int j = 0; j < numPruned; j++)
+        {
+            // Find the connection with lowest absolute weight
+            double minWeight = 1000000;
+            Neuron *minNeuron = nullptr;
+            int minConnection = -1;
+            for (Neuron *neuron : m_layers[i])
+            {
+                for (int k = 0; k < neuron->inputConnections.size(); k++)
+                {
+                    Connection connection = neuron->inputConnections[k];
+                    if (abs(connection.weight) < minWeight)
+                    {
+                        minWeight = abs(connection.weight);
+                        minNeuron = neuron;
+                        minConnection = k;
+                    }
+                }
+                        }
+            if (minConnection != -1)
+            {
+                minNeuron->inputConnections.erase(minNeuron->inputConnections.begin() + minConnection);
+                pruned++;
+            }
+        }
+    }
+    return pruned;
+}
+
 void NeuralNetwork::feedForward(std::vector<std::vector<double>> inputVals)
 {
     for (int i = 0; i < inputVals.size(); i++)

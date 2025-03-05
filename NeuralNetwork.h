@@ -25,6 +25,7 @@ public:
     void setLearningRate(double learningRate) { this->learningRate = learningRate; }
     unsigned long getComputations();
     void randomizeWeightsAndBias();
+    unsigned long pruneNetwork(double proportion);
 
 private:
     std::vector<std::vector<Neuron *>> m_layers;
