@@ -84,12 +84,13 @@ bool Neuron::addError(double error)
 
 void Neuron::backProp(double learningRate)
 {
-    double delta = activationFunctionDerivative(outputs[0]) * error;
+    double delta = activationFunctionDerivative(this->getAverageOutput()) * error;
     for (Connection &connection : inputConnections)
     {
         connection.input->addError(delta * connection.weight);
         connection.weight += delta * connection.input->getAverageOutput() * learningRate;
     }
+    this->bias += delta * learningRate;
     this->error = 0;
     this->numOutputConnections = 0;
 }
