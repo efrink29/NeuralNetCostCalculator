@@ -2,7 +2,7 @@
 CC = g++
 
 # Compiler flags
-CFLAGS = -g -Wall -std=c++11
+CFLAGS = -g -std=c++11
 
 # Source files
 SRCS = $(wildcard *.cc) 

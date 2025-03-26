@@ -185,7 +185,7 @@ void NeuralNetwork::randomizeWeightsAndBias()
 unsigned long NeuralNetwork::pruneNetwork(double proportion)
 {
     unsigned long pruned = 0;
-    for (int i = 1; i < m_layers.size(); i++)
+    for (unsigned int i = 1; i < m_layers.size(); i++)
     {
         int numConnections = 0;
         for (Neuron *neuron : m_layers[i])
@@ -211,7 +211,7 @@ unsigned long NeuralNetwork::pruneNetwork(double proportion)
                         minConnection = k;
                     }
                 }
-                        }
+            }
             if (minConnection != -1)
             {
                 minNeuron->inputConnections.erase(minNeuron->inputConnections.begin() + minConnection);

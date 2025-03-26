@@ -327,7 +327,7 @@ bool saveNetwork(NeuralNetwork *nn, vector<double> averageErrors)
     return true;
 }
 
-void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *reader, int numModels, int numEpochs)
+void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *reader, int numModels, int numEpochs, int batchSize)
 {
     double totalErrorRates[numEpochs][11];
 
@@ -347,7 +347,11 @@ void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *rea
     for (int m = 0; m < numModels; m++)
     {
         cout << "Model " << (m + 1) << endl;
-        nn->randomizeWeightsAndBias();
+        if (numModels > 1)
+        {
+            nn->randomizeWeightsAndBias();
+        }
+        // nn->randomizeWeightsAndBias();
         cout << "Completed Epochs: ... " << endl;
         double errorRates[numEpochs][11];
 
@@ -358,8 +362,8 @@ void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *rea
                 errorRates[i][j] = 0;
             }
             auto start = chrono::high_resolution_clock::now();
-
-            trainMnist(reader, nn, 10000, 1, (0.01 * m) + 0.05);
+            int numBatches = 10000 / batchSize;
+            trainMnist(reader, nn, numBatches, batchSize, 0.1);
             vector<double> avgErrors = bigMnistTest(reader, nn, 1000);
             double avgError = 0;
             for (int j = 0; j < 10; j++)
@@ -456,18 +460,18 @@ int main(int argc, char **argv)
     MNISTReader reader("data");
 
     Image_Data *image1 = reader.getNextTrainImage();
-    Image_Data *image2 = reader.getNextTrainImage();
+    // Image_Data *image2 = reader.getNextTrainImage();
 
     cout << "Image 1: " << image1->pixels[(24 * 28) + 24] << endl;
     reader.printImage(image1, true);
     // reader.printImage(image2, true);
 
     delete image1;
-    delete image2;
+    // delete image2;
     int modify = 28;
     vector<int> *topology = new vector<int>();
     topology->push_back(28 * 28);
-    topology->push_back(4);
+    // topology->push_back((28 * 14));
     topology->push_back(10);
 
     NeuralNetwork *nn = new NeuralNetwork(topology, 0.1);
@@ -477,7 +481,12 @@ int main(int argc, char **argv)
     int numModels = 10;
     int numEpochs = 10;
 
-    generateDeepErrorTable("bottleNeck", nn, &reader, numModels, numEpochs);
+    generateDeepErrorTable("quickTest1", nn, &reader, numModels, numEpochs, 1);
+    generateDeepErrorTable("quickTest2", nn, &reader, numModels, numEpochs, 2);
+    // int connectionsRemoved = nn->pruneNetwork(0.1);
+    // cout << "Connections removed: " << connectionsRemoved << endl;
+    //  generateDeepErrorTable("postPrune", nn, &reader, numModels, numEpochs);
+    delete nn;
     /*delete nn;
     topology->clear();
     topology->push_back(28 * 28);
