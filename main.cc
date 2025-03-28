@@ -178,12 +178,61 @@ void runUserModeratedTraining(NeuralNetwork *nn)
     nn->printNetwork();
     // TODO implement this
 }
+vector<double> getSevenSergmentOutputForLabel(int label)
+{
+
+    //  1 1 1
+    // 2     3
+    // 2     3
+    //  4 4 4
+    // 5     6
+    // 5     6
+    //  7 7 7
+    vector<double> output = {0, 0, 0, 0, 0, 0, 0};
+    switch (label)
+    {
+    case 0:
+        output = {1, 1, 1, 0, 1, 1, 1};
+        break;
+    case 1:
+        output = {0, 0, 1, 0, 0, 1, 0};
+        break;
+    case 2:
+        output = {1, 0, 1, 1, 1, 0, 1};
+        break;
+    case 3:
+        output = {1, 0, 1, 1, 0, 1, 1};
+        break;
+    case 4:
+        output = {0, 1, 1, 1, 0, 1, 0};
+        break;
+    case 5:
+        output = {1, 1, 0, 1, 0, 1, 1};
+        break;
+    case 6:
+        output = {1, 1, 0, 1, 1, 1, 1};
+        break;
+    case 7:
+        output = {1, 0, 1, 0, 0, 1, 0};
+        break;
+    case 8:
+        output = {1, 1, 1, 1, 1, 1, 1};
+        break;
+    case 9:
+        output = {1, 1, 1, 1, 0, 1, 1};
+        break;
+    default:
+        cout << "Error: Invalid label " << label << endl;
+        break;
+    }
+    return output;
+}
 
 vector<double> getOutputForLabel(int label)
 {
     vector<double> output = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     output[label] = 1;
-    return output;
+    return getSevenSergmentOutputForLabel(label);
 }
 
 void trainMnist(MNISTReader *reader, NeuralNetwork *nn, int numBatches, int batchSize, double learningRate)
@@ -192,21 +241,43 @@ void trainMnist(MNISTReader *reader, NeuralNetwork *nn, int numBatches, int batc
     vector<vector<vector<double>>> outputs;
     for (int i = 0; i < numBatches; i++)
     {
-        vector<vector<double>> inputBatch = {};
-        vector<vector<double>> outputBatch = {};
-        for (int b = 0; b < batchSize; b++)
+
+        for (uint8_t n = 0; n < 10; n++)
         {
-            Image_Data *image1 = reader->getNextTrainImage();
+            vector<vector<double>> inputBatch = {};
+            vector<vector<double>> outputBatch = {};
+            for (int b = 0; b < batchSize; b++)
+            {
+                Image_Data *image1 = reader->getNextLabelTrainImage(n);
 
-            vector<double> input = image1->pixels;
-            vector<double> output = getOutputForLabel(image1->label);
+                vector<double> input = image1->pixels;
+                if (input.size() != 784)
+                {
+                    cout << "Error: input size is " << input.size() << endl;
+                    exit(1);
+                    return;
+                }
+                vector<double> output = getOutputForLabel(image1->label);
 
-            inputBatch.push_back(input);
-            outputBatch.push_back(output);
-            delete image1;
+                inputBatch.push_back(input);
+                outputBatch.push_back(output);
+                delete image1;
+            }
+            inputs.push_back(inputBatch);
+            outputs.push_back(outputBatch);
         }
-        inputs.push_back(inputBatch);
-        outputs.push_back(outputBatch);
+    }
+    for (vector<vector<double>> inputBatch : inputs)
+    {
+        for (vector<double> input : inputBatch)
+        {
+            if (input.size() != 784)
+            {
+                cout << "Error: input size is " << input.size() << endl;
+                exit(1);
+                return;
+            }
+        }
     }
     nn->setLearningRate(learningRate);
     nn->train(inputs, outputs);
@@ -216,32 +287,18 @@ double testMnist(MNISTReader *reader, NeuralNetwork *nn, int numTests)
 {
     vector<vector<double>> inputBatch = {};
     vector<vector<double>> outputBatch = {};
-    bool numbersPresent[] = {false, false, false, false, false, false, false, false, false, false};
+
     for (int i = 0; i < numTests; i++)
     {
-        Image_Data *image = reader->getNextTestImage();
-        if (i % 10 == 0)
+        for (uint8_t n = 0; n < 10; n++)
         {
-            for (int j = 0; j < 10; j++)
-            {
-                numbersPresent[j] = false;
-            }
-        }
-        if (!numbersPresent[image->label])
-        {
-            vector<double> input = image->pixels;
-            vector<double> output = getOutputForLabel(image->label);
-            // reader->printImage(image, true);
+            Image_Data *image1 = reader->getNextLabelTestImage(n);
+            vector<double> input = image1->pixels;
+            vector<double> output = getOutputForLabel(image1->label);
             inputBatch.push_back(input);
             outputBatch.push_back(output);
-            numbersPresent[image->label] = true;
+            delete image1;
         }
-        else
-        {
-            i--;
-        }
-
-        delete image;
     }
     return nn->test(&inputBatch, &outputBatch, false);
 }
@@ -250,25 +307,29 @@ vector<double> bigMnistTest(MNISTReader *reader, NeuralNetwork *nn, int numTests
 {
 
     // bool numbersPresent[] = {false, false, false, false, false, false, false, false, false, false};
-    double avgPerDigitError[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    double avgPerDigitError[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     int numPerDigitTests[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     for (int i = 0; i < numTests; i++)
     {
-        Image_Data *image = reader->getNextTestImage();
-        vector<double> input = image->pixels;
-        vector<double> output = getOutputForLabel(image->label);
-        vector<vector<double>> inputBatch = {input};
-        vector<vector<double>> outputBatch = {output};
-        double error = nn->test(&inputBatch, &outputBatch, false);
-        avgPerDigitError[image->label] += error;
-        numPerDigitTests[image->label]++;
-
-        delete image;
+        for (uint8_t n = 0; n < 10; n++)
+        {
+            Image_Data *image1 = reader->getNextLabelTestImage(n);
+            vector<double> input = image1->pixels;
+            vector<double> output = getOutputForLabel(image1->label);
+            vector<vector<double>> inputBatch = {input};
+            vector<vector<double>> outputBatch = {output};
+            double error = nn->test(&inputBatch, &outputBatch, false);
+            avgPerDigitError[n] += error;
+            numPerDigitTests[n]++;
+            delete image1;
+        }
     }
     vector<double> avgErrors;
     for (int i = 0; i < 10; i++)
     {
-        avgErrors.push_back(avgPerDigitError[i] / (double)numPerDigitTests[i]);
+        double avgError = avgPerDigitError[i] / (double)numPerDigitTests[i];
+        // cout << "Average error for " << i << ": " << avgError << endl;
+        avgErrors.push_back(avgError);
     }
     return avgErrors;
 }
@@ -343,7 +404,8 @@ void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *rea
             totalErrorRates[i][j] = 0;
         }
     }
-
+    int modelCost = nn->getComputations();
+    cout << "Model Cost: " << modelCost << endl;
     for (int m = 0; m < numModels; m++)
     {
         cout << "Model " << (m + 1) << endl;
@@ -362,7 +424,7 @@ void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *rea
                 errorRates[i][j] = 0;
             }
             auto start = chrono::high_resolution_clock::now();
-            int numBatches = 10000 / batchSize;
+            int numBatches = 5000 / (batchSize * 10);
             trainMnist(reader, nn, numBatches, batchSize, 0.1);
             vector<double> avgErrors = bigMnistTest(reader, nn, 1000);
             double avgError = 0;
@@ -392,6 +454,19 @@ void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *rea
             {
                 cout << " ETA: " << ETA << " seconds" << endl;
             }
+            for (int j = 0; j < 10; j++)
+            {
+                vector<double> output = getOutputForLabel(j);
+                vector<vector<double>> inputBatch = {};
+                vector<vector<double>> outputBatch = {};
+
+                Image_Data *image1 = reader->getNextLabelTestImage(j);
+                vector<double> input = image1->pixels;
+                inputBatch.push_back(input);
+                outputBatch.push_back(output);
+                delete image1;
+                nn->test(&inputBatch, &outputBatch, true);
+            }
             // averageErrors.push_back(avgError);
             for (int e = 0; e < 11; e++)
             {
@@ -410,7 +485,7 @@ void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *rea
             {
                 minError[i] = errorRates[numEpochs - 1][i];
             }
-            nn->save(fileName + ".nn");
+            nn->save("models/" + fileName + ".nn");
         }
     }
 
@@ -422,7 +497,7 @@ void generateDeepErrorTable(string fileName, NeuralNetwork *nn, MNISTReader *rea
         }
     }
 
-    ofstream errorFile(fileName + ".csv");
+    ofstream errorFile("results/" + fileName + ".csv");
     errorFile << "Epoch,0,1,2,3,4,5,6,7,8,9,Average" << endl;
     for (int i = 0; i < numEpochs; i++)
     {
@@ -459,82 +534,56 @@ int main(int argc, char **argv)
     srand(time(NULL));
     MNISTReader reader("data");
 
-    Image_Data *image1 = reader.getNextTrainImage();
-    // Image_Data *image2 = reader.getNextTrainImage();
+    vector<int> *topology1 = new vector<int>();
+    topology1->push_back(28 * 28);
+    topology1->push_back((4));
+    topology1->push_back(28);
+    topology1->push_back(7);
 
-    cout << "Image 1: " << image1->pixels[(24 * 28) + 24] << endl;
-    reader.printImage(image1, true);
-    // reader.printImage(image2, true);
+    NeuralNetwork *nn1 = new NeuralNetwork(topology1, 0.1);
+    nn1->setLearningRate(0.1);
+    nn1->randomizeWeightsAndBias();
 
-    delete image1;
-    // delete image2;
-    int modify = 28;
-    vector<int> *topology = new vector<int>();
-    topology->push_back(28 * 28);
-    // topology->push_back((28 * 14));
-    topology->push_back(10);
+    vector<int> *topology2 = new vector<int>();
+    topology2->push_back(28 * 28);
+    topology2->push_back((28));
+    topology2->push_back(4);
+    topology2->push_back(7);
 
-    NeuralNetwork *nn = new NeuralNetwork(topology, 0.1);
-    nn->setLearningRate(0.1);
-    nn->randomizeWeightsAndBias();
+    NeuralNetwork *nn2 = new NeuralNetwork(topology2, 0.1);
+    nn2->setLearningRate(0.1);
+    nn2->randomizeWeightsAndBias();
 
-    int numModels = 10;
+    vector<int> *topology3 = new vector<int>();
+    topology3->push_back(28 * 28);
+    topology3->push_back(28);
+    topology3->push_back(7);
+
+    NeuralNetwork *nn3 = new NeuralNetwork(topology3, 0.1);
+    nn3->setLearningRate(0.1);
+    nn3->randomizeWeightsAndBias();
+
+    vector<int> *topology4 = new vector<int>();
+    topology4->push_back(28 * 28);
+    topology4->push_back(4);
+    topology4->push_back(7);
+
+    NeuralNetwork *nn4 = new NeuralNetwork(topology4, 0.1);
+    nn4->setLearningRate(0.1);
+    nn4->randomizeWeightsAndBias();
+
+    int numModels = 1;
     int numEpochs = 10;
 
-    generateDeepErrorTable("quickTest1", nn, &reader, numModels, numEpochs, 1);
-    generateDeepErrorTable("quickTest2", nn, &reader, numModels, numEpochs, 2);
-    // int connectionsRemoved = nn->pruneNetwork(0.1);
-    // cout << "Connections removed: " << connectionsRemoved << endl;
-    //  generateDeepErrorTable("postPrune", nn, &reader, numModels, numEpochs);
-    delete nn;
-    /*delete nn;
-    topology->clear();
-    topology->push_back(28 * 28);
-    topology->push_back((28 * 4) / modify);
-    topology->push_back((28 * 4) / modify);
-    topology->push_back((28 * 4) / modify);
-    topology->push_back((28 * 4) / modify);
-    topology->push_back(10);
-    nn = new NeuralNetwork(topology, 0.1);
-    nn->setLearningRate(0.1);
-    nn->randomizeWeightsAndBias();
-    generateDeepErrorTable("deep4short", nn, &reader, numModels, numEpochs);
-    delete nn;
-    topology->clear();
-    topology->push_back(28 * 28);
-    for (int i = 0; i < 20; i++)
-    {
-        topology->push_back((28 * 4) / modify);
-    }
-    topology->push_back(10);
-    nn = new NeuralNetwork(topology, 0.1);
-    nn->setLearningRate(0.1);
-    nn->randomizeWeightsAndBias();
-    generateDeepErrorTable("deep4long", nn, &reader, numModels, numEpochs);
-    delete nn;
-    topology->clear();
-    topology->push_back(28 * 28);
-    topology->push_back((28 * 8) / modify);
-    topology->push_back((28 * 8) / modify);
-    topology->push_back(10);
-    nn = new NeuralNetwork(topology, 0.1);
-    nn->setLearningRate(0.1);
-    nn->randomizeWeightsAndBias();
-    generateDeepErrorTable("deep8short", nn, &reader, numModels, numEpochs);
-    delete nn;
-    topology->clear();
-    topology->push_back(28 * 28);
-    for (int i = 0; i < 4; i++)
-    {
-        topology->push_back((28 * 8) / modify);
-    }
-    topology->push_back(10);
-    nn = new NeuralNetwork(topology, 0.1);
-    nn->setLearningRate(0.1);
-    nn->randomizeWeightsAndBias();
-    generateDeepErrorTable("deep8long", nn, &reader, numModels, numEpochs); //*/
-    delete nn;
-    delete topology;
+    generateDeepErrorTable("quickTest1", nn1, &reader, numModels, numEpochs, 1);
+    generateDeepErrorTable("quickTest2", nn2, &reader, numModels, numEpochs, 1);
+    generateDeepErrorTable("quickTest3", nn3, &reader, numModels, numEpochs, 1);
+    generateDeepErrorTable("quickTest4", nn4, &reader, numModels, numEpochs, 1);
+
+    delete nn1;
+    delete nn2;
+    delete nn3;
+    delete nn4;
 
     return 0;
 }

@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <sstream>
 
+#include <iomanip>
+
 #include "Neuron.h"
 
 class NeuralNetwork

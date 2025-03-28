@@ -116,59 +116,91 @@ void NeuralNetwork::save(const std::string &filename)
 
 void NeuralNetwork::train(const std::vector<std::vector<std::vector<double>>> &inputVals, const std::vector<std::vector<std::vector<double>>> &targetVals)
 {
-    for (int i = 0; i < inputVals.size(); i++)
-    {
-        std::vector<std::vector<double>> input = inputVals[i];
-        std::vector<std::vector<double>> output = targetVals[i];
-        // Set batch size
-        for (int layerNum = 0; layerNum < m_layers.size(); ++layerNum)
-        {
-            for (int neuronNum = 0; neuronNum < m_layers[layerNum].size(); ++neuronNum)
-            {
-                m_layers[layerNum][neuronNum]->changeBatchSize(input.size());
-            }
-        }
-
-        feedForward(input);
-        backProp(output);
-    }
-}
-
-double NeuralNetwork::test(std::vector<std::vector<double>> *inputVals, std::vector<std::vector<double>> *resultVals, bool printResults)
-{
-    double avgError = 0.0;
     // Set batch size
     for (int layerNum = 0; layerNum < m_layers.size(); ++layerNum)
     {
         for (int neuronNum = 0; neuronNum < m_layers[layerNum].size(); ++neuronNum)
         {
-            m_layers[layerNum][neuronNum]->changeBatchSize(1);
+            m_layers[layerNum][neuronNum]->changeBatchSize(inputVals[0].size());
         }
     }
-    std::cout.precision(4);
-    for (int i = 0; i < inputVals->size(); i++)
+    for (int i = 0; i < inputVals.size(); i++)
     {
-        std::vector<std::vector<double>> testInput = std::vector<std::vector<double>>();
-        testInput.push_back((*inputVals)[i]);
-        feedForward(testInput);
-        std::vector<double> results = getTestResults();
-        double avgTestError = 0.0;
-        for (int r = 0; r < results.size(); r++)
+        const std::vector<std::vector<double>> &input = inputVals[i];
+        const std::vector<std::vector<double>> &output = targetVals[i];
+        for (int j = 0; j < input.size(); j++)
         {
-            avgTestError += abs((*resultVals)[i][r] - results[r]);
+            if (input[j].size() != m_layers[0].size())
+            {
+                std::cerr << "Error: Input size does not match network input size i:" << i << " j:" << j << std::endl;
+                return;
+            }
         }
-        avgError += avgTestError / (double)results.size();
+        feedForward(input);
+        backProp(output);
+    }
+}
+
+double NeuralNetwork::test(std::vector<std::vector<double>> *inputVals,
+                           std::vector<std::vector<double>> *resultVals,
+                           bool printResults)
+{
+    double avgError = 0.0;
+    const size_t numSamples = inputVals->size();
+    const size_t outputSize = m_layers.back().size();
+
+    for (auto &layer : m_layers)
+    {
+        for (Neuron *neuron : layer)
+        {
+            neuron->changeBatchSize(1);
+        }
+    }
+
+    for (size_t i = 0; i < numSamples; i++)
+    {
+        std::vector<double> input = (*inputVals)[i];
+        std::vector<double> output = (*resultVals)[i];
+
+        feedForward({input});
+        std::vector<double> result = getTestResults();
+
+        double error = 0.0;
+        for (size_t j = 0; j < outputSize; j++)
+        {
+            error += std::abs(output[j] - result[j]);
+        }
+        error /= outputSize;
+
+        avgError += error;
         if (printResults)
         {
-            std::cout << "Results Test #" + std::to_string(i) << "\nExpected : Actual" << std::endl;
-            for (int r = 0; r < results.size(); r++)
+            std::cout << "Expected:Actual - ";
+            std::cout << std::setprecision(3) << std::fixed;
+            for (size_t j = 0; j < outputSize; j++)
             {
-                std::cout << (*resultVals)[i][r] << " : " << results[r] << std::endl;
+                if (output[j] < 0.001)
+                {
+                    std::cout << "0.000:";
+                }
+                else
+                {
+                    std::cout << output[j] << ":";
+                }
+                if (result[j] < 0.001)
+                {
+                    std::cout << "0.000  ";
+                }
+                else
+                {
+                    std::cout << result[j] << "  ";
+                }
             }
             std::cout << std::endl;
         }
     }
-    return avgError / (double)inputVals->size();
+    avgError /= numSamples;
+    return avgError;
 }
 
 void NeuralNetwork::randomizeWeightsAndBias()
@@ -224,11 +256,17 @@ unsigned long NeuralNetwork::pruneNetwork(double proportion)
 
 void NeuralNetwork::feedForward(std::vector<std::vector<double>> inputVals)
 {
+
     for (int i = 0; i < inputVals.size(); i++)
     {
         std::vector<double> input = inputVals[i];
         for (int j = 0; j < input.size(); j++)
         {
+            if (i >= m_layers[0][j]->getBatchSize())
+            {
+                std::cerr << "Error: Input size does not match network input size i:" << i << " batchSize:" << m_layers[0][j]->getBatchSize() << std::endl;
+                return;
+            }
             m_layers[0][j]->outputs[i] = input[j];
         }
     }
@@ -267,11 +305,13 @@ void NeuralNetwork::backProp(const std::vector<std::vector<double>> &targetVals)
 
 std::vector<double> NeuralNetwork::getTestResults()
 {
-    std::vector<double> resultVals = std::vector<double>();
-    for (int i = 0; i < m_layers.back().size(); i++)
+    std::vector<double> resultVals;
+    resultVals.reserve(m_layers.back().size());
+    for (Neuron *neuron : m_layers.back())
     {
-        resultVals.push_back(m_layers.back()[i]->outputs[0]);
+        resultVals.push_back(neuron->outputs[0]);
     }
+
     return resultVals;
 }
 

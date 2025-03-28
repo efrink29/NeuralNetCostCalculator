@@ -130,3 +130,8 @@ double Neuron::activationFunctionDerivative(double x)
 {
     return x * (1 - x);
 }
+
+int Neuron::getBatchSize()
+{
+    return batchSize;
+}

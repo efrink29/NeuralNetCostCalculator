@@ -17,8 +17,39 @@ MNISTReader::MNISTReader(const string &dataDirectory)
     train_images = loadImages(trainImageFile, numTrainImages, rows, cols);
     test_labels = loadLabels(testLabelFile);
     test_images = loadImages(testImageFile, numTestImages, rows, cols);
-    shuffleTrainImages();
-    shuffleTestImages();
+    rng.seed(time(NULL)); // seed once
+    buildLabelIndices();
+}
+
+void MNISTReader::buildLabelIndices()
+{
+    for (int i = 0; i < static_cast<int>(train_labels.size()); ++i)
+    {
+        train_label_indices[train_labels[i]].push_back(i);
+    }
+
+    for (int i = 0; i < static_cast<int>(test_labels.size()); ++i)
+    {
+        test_label_indices[test_labels[i]].push_back(i);
+    }
+
+    // Shuffle each label group
+    for (auto it = train_label_indices.begin(); it != train_label_indices.end(); ++it)
+    {
+        std::shuffle(it->second.begin(), it->second.end(), rng);
+    }
+
+    for (auto it = test_label_indices.begin(); it != test_label_indices.end(); ++it)
+    {
+        std::shuffle(it->second.begin(), it->second.end(), rng);
+    }
+
+    // Initialize label pointers
+    for (uint8_t i = 0; i < 10; ++i)
+    {
+        train_label_pointer[i] = 0;
+        test_label_pointer[i] = 0;
+    }
 }
 
 void MNISTReader::printImage(Image_Data *image, bool printPixels)
@@ -71,6 +102,63 @@ Image_Data *MNISTReader::getNextTestImage()
         test_index = 0;
         shuffleTestImages();
     }
+    return image;
+}
+Image_Data *MNISTReader::getNextLabelTrainImage(uint8_t label)
+{
+    auto &indices = train_label_indices[label];
+    int &pointer = train_label_pointer[label];
+
+    if (indices.empty())
+        return nullptr;
+
+    if (pointer >= indices.size())
+    {
+        std::shuffle(indices.begin(), indices.end(), rng);
+        pointer = 0;
+    }
+
+    int real_index = indices[pointer++];
+
+    vector<double> image_pixels;
+    image_pixels.reserve(rows * cols);
+    for (int i = 0; i < rows * cols; ++i)
+    {
+        image_pixels.push_back(train_images[real_index][i] / 255.0);
+    }
+
+    Image_Data *image = new Image_Data();
+    image->pixels = image_pixels;
+    image->label = train_labels[real_index];
+    return image;
+}
+
+Image_Data *MNISTReader::getNextLabelTestImage(uint8_t label)
+{
+    auto &indices = test_label_indices[label];
+    int &pointer = test_label_pointer[label];
+
+    if (indices.empty())
+        return nullptr;
+
+    if (pointer >= indices.size())
+    {
+        std::shuffle(indices.begin(), indices.end(), rng);
+        pointer = 0;
+    }
+
+    int real_index = indices[pointer++];
+
+    vector<double> image_pixels;
+    image_pixels.reserve(rows * cols);
+    for (int i = 0; i < rows * cols; ++i)
+    {
+        image_pixels.push_back(test_images[real_index][i] / 255.0);
+    }
+
+    Image_Data *image = new Image_Data();
+    image->pixels = image_pixels;
+    image->label = test_labels[real_index];
     return image;
 }
 
@@ -198,7 +286,7 @@ void MNISTReader::shuffleTestImages()
             // cout << "Test images left: " << (numTestImages - i) << endl;
         }
     }
-
+    test_index = 0;
     // cout << " Done ... ";
     //  cout << "Test images: " << test_images.size() << endl;
 }
@@ -221,6 +309,7 @@ void MNISTReader::shuffleTrainImages()
             // cout << "Train images left: " << (numTrainImages - i) << endl;
         }
     }
+    train_index = 0;
 
     // cout << "Done ... ";
 }

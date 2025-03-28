@@ -37,6 +37,7 @@ public:
     double getAverageOutput();
     std::vector<Connection> inputConnections;
     void randomizeWeightsAndBias();
+    int getBatchSize();
 
 private:
     int batchSize;
