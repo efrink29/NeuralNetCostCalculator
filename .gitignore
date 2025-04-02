@@ -6,3 +6,5 @@ data/
 *.nn
 *.error
 *.csv
+*.jpg
+*.png

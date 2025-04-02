@@ -536,54 +536,20 @@ int main(int argc, char **argv)
 
     vector<int> *topology1 = new vector<int>();
     topology1->push_back(28 * 28);
-    topology1->push_back((4));
-    topology1->push_back(28);
+    topology1->push_back(10);
+    topology1->push_back(100);
     topology1->push_back(7);
 
     NeuralNetwork *nn1 = new NeuralNetwork(topology1, 0.1);
     nn1->setLearningRate(0.1);
     nn1->randomizeWeightsAndBias();
-
-    vector<int> *topology2 = new vector<int>();
-    topology2->push_back(28 * 28);
-    topology2->push_back((28));
-    topology2->push_back(4);
-    topology2->push_back(7);
-
-    NeuralNetwork *nn2 = new NeuralNetwork(topology2, 0.1);
-    nn2->setLearningRate(0.1);
-    nn2->randomizeWeightsAndBias();
-
-    vector<int> *topology3 = new vector<int>();
-    topology3->push_back(28 * 28);
-    topology3->push_back(28);
-    topology3->push_back(7);
-
-    NeuralNetwork *nn3 = new NeuralNetwork(topology3, 0.1);
-    nn3->setLearningRate(0.1);
-    nn3->randomizeWeightsAndBias();
-
-    vector<int> *topology4 = new vector<int>();
-    topology4->push_back(28 * 28);
-    topology4->push_back(4);
-    topology4->push_back(7);
-
-    NeuralNetwork *nn4 = new NeuralNetwork(topology4, 0.1);
-    nn4->setLearningRate(0.1);
-    nn4->randomizeWeightsAndBias();
-
+    // cout << "Cost of model: " << nn1->getComputations() << endl;
     int numModels = 1;
     int numEpochs = 10;
 
-    generateDeepErrorTable("quickTest1", nn1, &reader, numModels, numEpochs, 1);
-    generateDeepErrorTable("quickTest2", nn2, &reader, numModels, numEpochs, 1);
-    generateDeepErrorTable("quickTest3", nn3, &reader, numModels, numEpochs, 1);
-    generateDeepErrorTable("quickTest4", nn4, &reader, numModels, numEpochs, 1);
+    generateDeepErrorTable("topologyTest5", nn1, &reader, numModels, numEpochs, 1);
 
     delete nn1;
-    delete nn2;
-    delete nn3;
-    delete nn4;
 
     return 0;
 }
