@@ -40,7 +40,7 @@ NeuralNetwork::NeuralNetwork(std::vector<int> *topology, double learningRate)
 
 NeuralNetwork::NeuralNetwork(const std::string &filename)
 {
-    std::ifstream file(filename);
+    std::ifstream file("models/" + filename + ".nn");
     if (!file.is_open())
     {
         std::cerr << "Error: Could not open file " << filename << std::endl;
@@ -338,4 +338,59 @@ unsigned long NeuralNetwork::getComputations()
         }
     }
     return computations;
+}
+
+std::vector<double> NeuralNetwork::getOutputForLayer(std::vector<double> input, int layerIndex)
+{
+    std::vector<double> output;
+    for (int i = 0; i < m_layers[0].size(); i++)
+    {
+        m_layers[0][i]->outputs[0] = input[i];
+    }
+
+    for (int i = 1; i <= layerIndex; i++)
+    {
+        for (Neuron *neuron : m_layers[i])
+        {
+            neuron->feedForward();
+            if (i == layerIndex)
+            {
+                output.push_back(neuron->outputs[0]);
+            }
+        }
+    }
+    return output;
+}
+
+void NeuralNetwork::addLayer(std::vector<Neuron *> layer)
+{
+
+    std::vector<Neuron *> newLayer = std::vector<Neuron *>();
+    std::vector<Neuron *> inputs = m_layers.back();
+    for (int i = 0; i < layer.size(); i++)
+    {
+        Neuron *original = layer[i];
+        Neuron *copy = new Neuron(*original);
+        std::vector<Connection> inputConnections = copy->inputConnections;
+        for (int j = 0; j < inputConnections.size(); j++)
+        {
+            inputConnections[j].input = inputs[j];
+        }
+        copy->inputConnections = inputConnections;
+        newLayer.push_back(copy);
+    }
+    m_layers.push_back(newLayer);
+}
+
+void NeuralNetwork::removeBackLayer()
+{
+
+    if (m_layers.size() > 1)
+    {
+        for (Neuron *neuron : m_layers.back())
+        {
+            delete neuron;
+        }
+        m_layers.pop_back();
+    }
 }

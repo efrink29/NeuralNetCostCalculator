@@ -28,6 +28,10 @@ public:
     unsigned long getComputations();
     void randomizeWeightsAndBias();
     unsigned long pruneNetwork(double proportion);
+    std::vector<double> getOutputForLayer(std::vector<double> input, int layerIndex);
+    void addLayer(std::vector<Neuron *> layer);
+    std::vector<Neuron *> getLayer(int layerIndex) { return m_layers[layerIndex]; }
+    void removeBackLayer();
 
 private:
     std::vector<std::vector<Neuron *>> m_layers;
